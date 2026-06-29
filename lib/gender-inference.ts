@@ -1,67 +1,53 @@
 /**
- * Lichtgewicht Nederlandse naam → geslacht inferentie.
- *
- * Gebruikt de npm-package `gender-guesser` (Engelstalige heuristiek) met
- * een handmatige override-lijst voor veelvoorkomende Nederlandse en Arabische
- * namen die niet goed worden herkend.
- *
- * Installeer: npm install gender-guesser
+ * Lichtgewicht Nederlandse naam naar geslacht inferentie.
+ * Geen externe dependencies.
  */
-
-// @ts-expect-error — geen officiële typen voor gender-guesser
-import genderGuesser from "gender-guesser";
 
 type GenderResult = "man" | "vrouw" | "onbekend";
 
-/** Namen die gender-guesser verkeerd of niet herkent */
-const OVERRIDE_NL: Record<string, GenderResult> = {
-  // Mannen
-  daan: "man", bram: "man", thijs: "man", joep: "man", sven: "man",
-  luuk: "man", niels: "man", ruben: "man", arjen: "man", bas: "man",
-  cas: "man", finn: "man", floris: "man", gijs: "man", hidde: "man",
-  huub: "man", jaap: "man", koos: "man", lenn: "man", maarten: "man",
-  noud: "man", pim: "man", rik: "man", sjors: "man", tijs: "man",
-  wout: "man", yannick: "man", stef: "man",
-  // Islamitische mannennamen
-  mohammed: "man", omar: "man", youssef: "man", tariq: "man",
-  ibrahim: "man", bilal: "man", hamza: "man",
-  // Vrouwen
-  anouk: "vrouw", fien: "vrouw", lotte: "vrouw", roos: "vrouw",
-  fleur: "vrouw", noor: "vrouw", lies: "vrouw", inge: "vrouw",
-  maud: "vrouw", britt: "vrouw", merel: "vrouw", elke: "vrouw",
-  femke: "vrouw", hilde: "vrouw", ilse: "vrouw", jolien: "vrouw",
-  katrien: "vrouw", lieske: "vrouw", nathalie: "vrouw",
-  // Islamitische vrouwennamen
-  fatima: "vrouw", aisha: "vrouw", nadia: "vrouw", samira: "vrouw",
-  leila: "vrouw", yasmine: "vrouw", amina: "vrouw", khadija: "vrouw",
-};
+const MANNENNAMEN = new Set([
+  "adam","alexander","arjan","arjen","bas","bram","cas","chris","daan",
+  "david","dennis","dirk","elias","erik","finn","floris","frank","gijs",
+  "hans","henk","hidde","hugo","huub","jaap","jan","jasper","jeroen",
+  "job","joep","joost","joris","kevin","klaas","koen","lars","lenn",
+  "leon","luc","lukas","luuk","maarten","marc","mark","martijn","max",
+  "michiel","milan","noud","niels","noah","piet","pim","ralph","remco",
+  "rik","rob","robin","ruben","sander","sebastiaan","simon","sjors",
+  "stef","sven","thomas","thijs","tijs","tim","tom","victor","vincent",
+  "willem","wout","yannick","ahmed","ali","bilal","hamza","ibrahim",
+  "ismail","khalid","mehmet","mohammed","mohammad","omar","rachid",
+  "rayan","samir","tariq","walid","youssef","yusuf","zakaria",
+  "aaron","ben","brian","daniel","edward","george","henry","jack","james",
+  "jason","john","jonathan","joseph","joshua","liam","matthew","michael",
+  "nathan","nicholas","patrick","peter","richard","robert","ryan",
+  "samuel","scott","sean","steven","william",
+]);
 
-/**
- * Leidt geslacht af uit een voornaam.
- * Geeft "onbekend" als er geen betrouwbare inferentie mogelijk is.
- */
+const VROUWENNAMEN = new Set([
+  "amber","amira","anouk","bianca","britt","charlotte","elena","elke",
+  "emma","esther","eva","femke","fien","fleur","floor","hannah","hilde",
+  "ilse","inge","iris","jolien","julia","katrien","laura","lies","lieske",
+  "lieke","linda","lisa","lotte","manon","maud","merel","monique",
+  "nathalie","nina","noor","roos","rosa","sarah","silke","sofie","sonja",
+  "stephanie","vera","wendy","yasmin","aisha","amina","fatima","hafsa",
+  "khadija","laila","leila","maryam","nadia","nour","samira","sanaa",
+  "soumaya","yasmina","yasmine","zineb","alice","anna","caroline",
+  "claire","emily","jennifer","jessica","kate","katherine","marie",
+  "mary","michelle","nicole","olivia","rachel","rebecca","sandra",
+  "sophie","victoria",
+]);
+
 export function inferGender(fullName: string): {
   geslacht: GenderResult;
   basis: "naam-inferentie" | "onbekend";
 } {
   if (!fullName?.trim()) return { geslacht: "onbekend", basis: "onbekend" };
-
   const firstName = fullName.trim().split(/\s+/)[0].toLowerCase();
-
-  // Eigen override-lijst eerst
-  if (OVERRIDE_NL[firstName]) {
-    return { geslacht: OVERRIDE_NL[firstName], basis: "naam-inferentie" };
-  }
-
-  // gender-guesser (internationale heuristiek)
-  const raw: string = genderGuesser.guess(firstName) as string;
-
-  if (raw === "male" || raw === "mostly_male") {
-    return { geslacht: "man", basis: "naam-inferentie" };
-  }
-  if (raw === "female" || raw === "mostly_female") {
+  if (MANNENNAMEN.has(firstName)) return { geslacht: "man", basis: "naam-inferentie" };
+  if (VROUWENNAMEN.has(firstName)) return { geslacht: "vrouw", basis: "naam-inferentie" };
+  if (firstName.endsWith("je") || firstName.endsWith("ien") ||
+      firstName.endsWith("ine") || firstName.endsWith("ette")) {
     return { geslacht: "vrouw", basis: "naam-inferentie" };
   }
-
   return { geslacht: "onbekend", basis: "onbekend" };
 }
