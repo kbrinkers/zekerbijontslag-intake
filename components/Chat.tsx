@@ -74,7 +74,7 @@ export default function Chat() {
       const merged: PanelData = { ...prev };
       (Object.keys(newData) as (keyof PanelData)[]).forEach((key) => {
         if (newData[key] !== null && newData[key] !== undefined) {
-          (merged as Record<string, unknown>)[key] = newData[key];
+          (merged as unknown as Record<string, unknown>)[key] = newData[key];
         }
       });
       return merged;
