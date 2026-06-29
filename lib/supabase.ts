@@ -1,25 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Lazy-initiated om build-time fouten te voorkomen
-let _supabaseAdmin: ReturnType<typeof createClient> | null = null;
-
-export function getSupabaseAdmin(): ReturnType<typeof createClient> {
-  if (!_supabaseAdmin) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) throw new Error("Supabase env vars niet geconfigureerd");
-    _supabaseAdmin = createClient(url, key, { auth: { persistSession: false } });
-  }
-  return _supabaseAdmin;
-}
-
-// Volledige Supabase-client met lazy initialisatie via Proxy
-// Zorgt dat TypeScript alle query-builder types correct infer
-export const supabaseAdmin = new Proxy({} as ReturnType<typeof createClient>, {
-  get(_target, prop) {
-    return Reflect.get(getSupabaseAdmin(), prop);
-  },
-});
+export const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
+);
 
 export type IntakeRow = {
   id?: string;
