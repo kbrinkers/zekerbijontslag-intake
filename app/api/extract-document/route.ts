@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -22,46 +19,22 @@ export async function POST(req: NextRequest) {
 
     let extractedText = "";
 
-    // ââ DOCX via mammoth ââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // DOCX via mammoth
     if (
       fileName.endsWith(".docx") ||
       mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     ) {
-      // Dynamic import to avoid edge-runtime issues
       const mammoth = await import("mammoth");
       const result = await mammoth.extractRawText({ buffer });
       extractedText = result.value;
 
-    // ââ PDF via Anthropic document API À ®.. ââ
+    // PDF via pdf-parse
     } else if (fileName.endsWith(".pdf") || mimeType === "application/pdf") {
-      const base64 = buffer.toString("base64");
-      const response = await client.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 4096,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "document",
-                source: {
-                  type: "base64",
-                  media_type: "application/pdf",
-                  data: base64,
-                },
-              } as Anthropic.DocumentBlockParam,
-              {
-                type: "text",
-                text: "Extraheer de volledige tekst uit dit document. Geef alleen de ruwe tekst terug, geen samenvatting of uitleg.",
-              },
-            ],
-          },
-        ],
-      });
-      const block = response.content[0];
-      if (block.type === "text") extractedText = block.text;
+      const pdfParse = (await import("pdf-parse")).default;
+      const result = await pdfParse(buffer);
+      extractedText = result.text;
 
-    // ââ Platte tekst ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // Platte tekst
     } else if (mimeType.startsWith("text/") || fileName.endsWith(".txt")) {
       extractedText = buffer.toString("utf-8");
 
@@ -73,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!extractedText.trim()) {
-      return NextResponse.json({ error: "Kom geen tekst uit het bestand halen." }, { status: 422 });
+      return NextResponse.json({ error: "Kon geen tekst uit het bestand halen." }, { status: 422 });
     }
 
     return NextResponse.json({ text: extractedText.trim() });
