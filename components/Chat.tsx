@@ -18,12 +18,11 @@ import IntakePanel, { PanelData, emptyPanelData } from "./IntakePanel";
 function extractIntakeData(text: string): { clean: string; data: PanelData | null } {
   const match = text.match(/\[INTAKE:(\{[\s\S]*?\})\]/);
   if (!match) return { clean: text.trim(), data: null };
-
   let data: PanelData | null = null;
   try {
     data = JSON.parse(match[1]) as PanelData;
   } catch {
-    // Ongeldige JSON — negeer
+    // ongeldige JSON
   }
   const clean = text.replace(/\[INTAKE:[\s\S]*?\]/, "").trim();
   return { clean, data };
@@ -32,7 +31,7 @@ function extractIntakeData(text: string): { clean: string; data: PanelData | nul
 // ─── VSO-detectie ─────────────────────────────────────────────────────────────
 
 const VSO_KEYWORDS = [
-  "vaststellingsovereenkomst", "vso", "beëindigingsovereenkomst",
+  "vaststellingsovereenkomst", "vso", "beeindigingsovereenkomst",
   "transitievergoeding", "artikel 7:900", "finale kwijting", "einddatum dienstverband",
 ];
 
@@ -69,10 +68,22 @@ export default function Chat() {
   const [showPanel, setShowPanel] = useState(false);
   const initRef = useRef(false);
 
+  // mergePanelData vóór useEffect zodat TypeScript geen hoisting-fout geeft
+  const mergePanelData = useCallback((newData: PanelData) => {
+    setPanelData((prev) => {
+      const merged: PanelData = { ...prev };
+      (Object.keys(newData) as (keyof PanelData)[]).forEach((key) => {
+        if (newData[key] !== null && newData[key] !== undefined) {
+          (merged as Record<string, unknown>)[key] = newData[key];
+        }
+      });
+      return merged;
+    });
+  }, []);
+
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
-
     const init = async () => {
       try {
         const res = await fetch("/api/chat", {
@@ -86,50 +97,44 @@ export default function Chat() {
         setMessages([{ id: crypto.randomUUID(), role: "assistant", content: clean, timestamp: new Date() }]);
         if (data) mergePanelData(data);
       } catch {
-        setMessages([{ id: crypto.randomUUID(), role: "assistant", content: "Hoi! Ik ben Lisa van ZekerbijOntslag.nl. Vertel me eens — wat speelt er bij jou?", timestamp: new Date() }]);
+        setMessages([{ id: crypto.randomUUID(), role: "assistant", content: "Hoi! Ik ben Lisa van ZekerbijOntslag.nl. Vertel me eens wat er speelt.", timestamp: new Date() }]);
       } finally {
         setIsInitialized(true);
       }
     };
     init();
-  }, []);
-
-  const mergePanelData = useCallback((newData: PanelData) => {
-    setPanelData((prev) => {
-      const merged: PanelData = { ...prev };
-      (Object.keys(newData) as (keyof PanelData)[]).forEach((key) => {
-        if (newData[key] !== null && newData[key] !== undefined) {
-          (merged as Record<string, unknown>)[key] = newData[key];
-        }
-      });
-      return merged;
-    });
-  }, []);
+  }, [mergePanelData]);
 
   const updateStateFromMessage = useCallback((text: string, current: IntakeState): IntakeState => {
     const lower = text.toLowerCase();
     const updated = { ...current };
+
     const naam = extractNameFromMessage(text);
     if (naam && !updated.naam) {
       updated.naam = naam;
       const { geslacht } = inferGender(naam);
       updated.geslacht = geslacht;
     }
-    const salarisMatch = text.match(/(\d{2,5})\s*(?:euro|€|eur)?\s*(?:per maand|\/maand|bruto|,-)?/i);
+
+    // Fix: brutoMaandsalaris (niet brutomMaandsalaris)
+    const salarisMatch = text.match(/(\d{2,5})\s*(?:euro|\u20ac|eur)?\s*(?:per maand|\/maand|bruto|,-)?/i);
     if (salarisMatch) {
       const val = parseInt(salarisMatch[1]);
-      if (val >= 1000 && val <= 30000) updated.brutomMaandsalaris = val;
+      if (val >= 1000 && val <= 30000) updated.brutoMaandsalaris = val;
     }
+
     const jarenMatch = text.match(/(\d+)\s*(?:jaar|jaren)/i);
     if (jarenMatch) {
       const val = parseInt(jarenMatch[1]);
       if (val >= 0 && val <= 50) updated.dienstverbandJaren = val;
     }
+
     const leeftijdMatch = text.match(/(\d{2})\s*(?:jaar oud|jaar|jarig)/i);
     if (leeftijdMatch) {
       const val = parseInt(leeftijdMatch[1]);
       if (val >= 16 && val <= 70) updated.leeftijd = val;
     }
+
     if (lower.includes("vso") || lower.includes("vaststellingsovereenkomst")) {
       updated.situatieType = updated.situatieType ?? "VSO_ontvangen";
     } else if (lower.includes("reorganisatie")) {
@@ -140,18 +145,22 @@ export default function Chat() {
     } else if (lower.includes("ontslag")) {
       updated.situatieType = updated.situatieType ?? "ontslag_aangezegd";
     }
+
     if (lower.includes("bepaalde tijd") || lower.includes("tijdelijk")) {
       updated.contractType = "bepaald";
     } else if (lower.includes("vaste baan") || lower.includes("vast contract") || lower.includes("onbepaalde tijd")) {
       updated.contractType = "onbepaald";
     }
+
     if (lower.includes("ziek") && (lower.includes("vso") || lower.includes("ontslag"))) {
       if (updated.situatieType === "VSO_ontvangen") updated.situatieType = "ziekte_plus_VSO";
       updated.urgentie = updated.urgentie ?? "hoog";
     }
+
     if (lower.includes("niet geslapen") || lower.includes("overvallen") || lower.includes("in shock")) {
       updated.emotioneleStaat = "gespannen";
     }
+
     return updated;
   }, []);
 
@@ -227,7 +236,7 @@ export default function Chat() {
       const score = getCompletenessScore(updatedState);
       if (score >= 1.0 && !savedIntakeId) await saveIntake(updatedState);
     } catch {
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "Sorry, er ging even iets mis. Kun je dat nog een keer sturen?", timestamp: new Date() }]);
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "Sorry, er ging iets mis. Kun je dat nog een keer sturen?", timestamp: new Date() }]);
     } finally {
       setIsLoading(false);
     }
@@ -236,7 +245,7 @@ export default function Chat() {
   if (!isInitialized) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="animate-pulse text-gray-400 text-sm">Laden…</div>
+        <div className="animate-pulse text-gray-400 text-sm">Laden...</div>
       </div>
     );
   }
@@ -259,8 +268,8 @@ export default function Chat() {
               : "bg-orange-50 text-orange-700 border-b border-orange-100"
           }`}>
             {panelData.urgentie === "kritiek"
-              ? "⚠ Er is spoed bij deze situatie — een jurist neemt zo snel mogelijk contact op"
-              : "Er is enige tijdsdruk — een jurist neemt spoedig contact op"}
+              ? "Er is spoed bij deze situatie - een jurist neemt zo snel mogelijk contact op"
+              : "Er is enige tijdsdruk - een jurist neemt spoedig contact op"}
           </div>
         )}
         <MessageList messages={messages} isLoading={isLoading} />
@@ -271,7 +280,7 @@ export default function Chat() {
         onClick={() => setShowPanel((p) => !p)}
         className="lg:hidden fixed bottom-20 right-4 z-10 bg-white border border-gray-200 shadow-md rounded-full px-3 py-2 text-xs font-medium text-gray-600"
       >
-        {showPanel ? "× Sluit" : "📋 Jouw gegevens"}
+        {showPanel ? "x Sluit" : "Jouw gegevens"}
       </button>
 
       <div className={`
