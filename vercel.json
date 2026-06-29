@@ -1,0 +1,13 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "devCommand": "next dev",
+  "installCommand": "npm install",
+  "regions": ["fra1"],
+  "env": {
+    "ANTHROPIC_API_KEY": "@anthropic-api-key",
+    "NEXT_PUBLIC_SUPABASE_URL": "@supabase-url",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key",
+    "JURISTEN_PASSWORD": "@juristen-password"
+  }
+}
