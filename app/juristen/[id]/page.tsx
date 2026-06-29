@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -270,4 +272,4 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <dl>{children}</dl>
     </div>
   );
-}
+          }
