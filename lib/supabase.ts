@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 // Lazy-initiated om build-time fouten te voorkomen
 let _supabaseAdmin: ReturnType<typeof createClient> | null = null;
 
-export function getSupabaseAdmin() {
+export function getSupabaseAdmin(): ReturnType<typeof createClient> {
   if (!_supabaseAdmin) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -13,11 +13,13 @@ export function getSupabaseAdmin() {
   return _supabaseAdmin;
 }
 
-// Backwards-compat alias
-export const supabaseAdmin = {
-  from: (...args: Parameters<ReturnType<typeof createClient>["from"]>) =>
-    getSupabaseAdmin().from(...args),
-};
+// Volledige Supabase-client met lazy initialisatie via Proxy
+// Zorgt dat TypeScript alle query-builder types correct infer
+export const supabaseAdmin = new Proxy({} as ReturnType<typeof createClient>, {
+  get(_target, prop) {
+    return Reflect.get(getSupabaseAdmin(), prop);
+  },
+});
 
 export type IntakeRow = {
   id?: string;
