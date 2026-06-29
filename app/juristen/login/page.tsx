@@ -17,11 +17,13 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError("");
+
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password }),
     });
+
     if (res.ok) {
       router.push(redirect);
     } else {
@@ -31,27 +33,28 @@ function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">Wachtwoord</label>
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+          Wachtwoord
+        </label>
         <input
+          id="password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
-          placeholder="••••••••"
-          autoFocus
           required
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+          placeholder="Voer wachtwoord in"
         />
       </div>
-      {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
-        disabled={loading || !password}
-        className="w-full py-2.5 rounded-lg text-sm font-medium text-white transition disabled:opacity-50"
-        style={{ backgroundColor: "#2d7a4f" }}
+        disabled={loading}
+        className="w-full bg-green-700 text-white py-2 px-4 rounded-lg hover:bg-green-800 transition disabled:opacity-50 font-medium"
       >
-        {loading ? "Inloggen…" : "Inloggen"}
+        {loading ? "Inloggen\u2026" : "Inloggen"}
       </button>
     </form>
   );
@@ -59,15 +62,13 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center text-white text-xl font-bold"
-            style={{ backgroundColor: "#2d7a4f" }}>Z</div>
-          <h1 className="text-xl font-semibold text-gray-900">Juristen portaal</h1>
-          <p className="text-sm text-gray-500 mt-1">ZekerbijOntslag.nl</p>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-sm">
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-gray-900">Juristen login</h1>
+          <p className="text-sm text-gray-500 mt-1">Toegang tot het intakeportaal</p>
         </div>
-        <Suspense fallback={<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center text-gray-400 text-sm">Laden…</div>}>
+        <Suspense fallback={<div className="text-sm text-gray-400">Laden\u2026</div>}>
           <LoginForm />
         </Suspense>
       </div>
